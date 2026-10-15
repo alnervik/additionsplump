@@ -179,8 +179,8 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
   text-align: left;
   overflow-wrap: break-word;
   min-width: 0;
-}
-.chip {
+  cursor: pointer;
+}.chip {
   flex: none;
   background: var(--c);
   color: var(--paper);
@@ -303,7 +303,16 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
   color: var(--c);
   background: var(--paper);
   width: 100%;
+  cursor: text;
 }
+.field input::placeholder {
+  font-family: var(--f-body);
+  font-size: .55em;
+  font-style: italic;
+  color: var(--muted);
+  opacity: .8;
+}
+.field input:focus { outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 30%, transparent); }
 .field.t0 { --c: var(--green); }
 .field.t1 { --c: var(--red); }
 .row { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -389,12 +398,12 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
     <h2 id="setup-title">Hitta på lagnamn!</h2>
     <p id="setup-text">Dela in klassen i två lag. Varje lag hittar på ett namn.</p>
     <div class="field t0">
-      <label for="name0">Gröna laget</label>
-      <input id="name0" maxlength="24">
+      <label for="name0">Gröna laget – skriv ert namn</label>
+      <input id="name0" type="text" maxlength="24" placeholder="Skriv lagnamnet här …">
     </div>
     <div class="field t1">
-      <label for="name1">Röda laget</label>
-      <input id="name1" maxlength="24">
+      <label for="name1">Röda laget – skriv ert namn</label>
+      <input id="name1" type="text" maxlength="24" placeholder="Skriv lagnamnet här …">
     </div>
     <div class="row">
       <button class="btn primary" type="submit" id="setup-ok">Starta spelet</button>
@@ -706,8 +715,6 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
     setupMode = mode;
     $("name0").value = mode === "new" ? "" : S.teams[0].name;
     $("name1").value = mode === "new" ? "" : S.teams[1].name;
-    $("name0").placeholder = DEFAULT_NAMES[0];
-    $("name1").placeholder = DEFAULT_NAMES[1];
     $("setup-title").textContent = mode === "new" ? "Hitta på lagnamn!" : "Byt lagnamn";
     $("setup-text").hidden = mode !== "new";
     $("setup-ok").textContent = mode === "new" ? "Starta spelet" : "Spara namnen";
