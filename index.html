@@ -371,13 +371,14 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
           <li>Slå två tärningar.</li>
           <li>Räkna plus eller minus.</li>
           <li>Säg ert tal. Det kryssas på planen.</li>
+          <li>Går inget tal? Hoppa över turen.</li>
         </ol>
         <form class="entry" id="entry" autocomplete="off">
           <label for="num">Skriv talet:</label>
           <input id="num" inputmode="numeric" pattern="[0-9]*" maxlength="2" aria-describedby="msg">
           <button class="btn" type="submit">Kryssa</button>
         </form>
-        <button class="go" id="go" type="button">Inget tal går. Nästa lag!</button>
+        <button class="go" id="go" type="button">Hoppa över – inget tal går</button>
         <p class="msg" id="msg" aria-live="polite"></p>
       </section>
     </aside>
@@ -412,7 +413,7 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
       <li>Laget väljer om de vill <b>addera</b> eller <b>subtrahera</b>. Slår ni en femma och en tvåa kan ni ta 5 + 2 = 7 eller 5 − 2 = 3.</li>
       <li>Laget säger sitt tal. Tryck på talet på spelplanen eller skriv in det. Talet kryssas och laget får <b>1 poäng</b>.</li>
       <li>Ligger talet bredvid tal som redan är kryssade får laget <b>1 poäng extra</b> för varje sådant tal. Snett räknas också. Talet 11 ger 6 poäng om 6, 7, 8, 10 och 12 redan är kryssade.</li>
-      <li>Går inget tal att kryssa är det nästa lags tur.</li>
+      <li>Går inget tal att kryssa trycker ni på <b>Hoppa över</b>. Då är det nästa lags tur.</li>
       <li>Flest poäng när alla tal är kryssade vinner.</li>
     </ol>
     <p class="tip">Blev det fel? Tryck på Ångra. De sista talen kan ta tid att få. Då kan ni avsluta via Nytt spel och Visa vinnaren.</p>
@@ -515,13 +516,13 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
   function pick(n) {
     if (S.phase === "over") return;
     if (!(n >= 1 && n <= N)) {
-      say(n === 0 ? "0 finns inte på spelplanen. Välj ett annat tal!" : "Talet finns inte på spelplanen. Skriv ett tal från 1 till 12.", "warn");
+      say(n === 0 ? "0 finns inte på spelplanen. Välj ett annat tal, eller tryck på Hoppa över." : "Talet finns inte på spelplanen. Skriv ett tal från 1 till 12.", "warn");
       render();
       return;
     }
     var i = n - 1;
     if (S.cells[i] !== null) {
-      say(n + " är redan kryssat. Prova att räkna på det andra sättet!", "warn");
+      say(n + " är redan kryssat. Prova att räkna på det andra sättet! Går inget tal? Tryck på Hoppa över.", "warn");
       render(); shake(i); return;
     }
 
@@ -556,7 +557,7 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
     var t = S.turn;
     S.turn = 1 - t;
     S.lastTeam = null;
-    say("Inget tal att kryssa för " + S.teams[t].name + " den här gången. Nu slår " + S.teams[S.turn].name + ".", "info");
+    say("Inget tal gick att kryssa, så turen hoppades över. Nu slår " + S.teams[S.turn].name + ".", "info", S.teams[t].name + " hoppade över.");
     render();
   }
 
@@ -670,7 +671,7 @@ body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
     $("who").innerHTML = over ? "Spelet är slut!" : "Nu slår <span class=\"tname\">" + esc(S.teams[S.turn].name) + "</span>";
     $("steps").hidden = over;
     $("entry").hidden = over;
-    $("go").textContent = over ? "Visa vinnaren" : "Inget tal går. Nästa lag!";
+    $("go").textContent = over ? "Visa vinnaren" : "Hoppa över – inget tal går";
 
     var m = $("msg");
     m.className = "msg" + (S.msg ? " " + S.msg.kind : "");
