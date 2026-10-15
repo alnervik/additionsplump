@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Additionsplump</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Gochi+Hand&display=swap">
+<style>
+/* Layout: a whiteboard in its aluminium frame. Game board on the left, team tallies and the turn on the right,
+   like the marker notes in the classroom photo. Single light look on purpose: it is a whiteboard. */
+:root {
+  --frame: #b7bfc5;
+  --board: #fbfcfb;
+  --paper: #ffffff;
+  --tray: #e7ecee;
+  --ink: #1d2731;
+  --muted: #5d6a74;
+  --green: #0e8574;
+  --green-soft: #dcf1ec;
+  --red: #c92f3c;
+  --red-soft: #f9e1e3;
+  --hl: #ffe65c;
+  --f-marker: "Gochi Hand", "Chalkboard SE", "Comic Sans MS", cursive;
+  --f-body: "Andika", "Trebuchet MS", system-ui, sans-serif;
+  --line: clamp(3px, 0.5vmin, 7px);
+  --team: var(--green);
+  --team-soft: var(--green-soft);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--frame);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: clamp(16px, 1.6vmin, 22px);
+  padding-block: clamp(8px, 1.4vmin, 18px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+.wb {
+  height: 100%;
+  background: var(--board);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 2px #d4dadd, inset 0 -18px 40px -30px rgba(29, 39, 49, .25);
+  padding: clamp(12px, 2.2vmin, 32px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(10px, 2vmin, 28px);
+}
+
+/* ---------- Header ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 28px; }
+.brand h1 {
+  margin: 0;
+  font-family: var(--f-marker);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 5.4vmin, 4.2rem);
+  line-height: 1;
+  color: var(--ink);
+}
+.legend { margin: 0; display: flex; gap: 20px; font-family: var(--f-marker); font-size: clamp(1.2rem, 2.8vmin, 2.1rem); color: var(--muted); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.tool {
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: .35em 1em;
+  font-weight: 700;
+  font-size: clamp(.9rem, 1.7vmin, 1.15rem);
+}
+.tool:hover:not(:disabled) { background: var(--tray); }
+.tool:disabled { opacity: .35; }
+
+/* ---------- Main layout ---------- */
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: clamp(16px, 3.5vmin, 56px);
+  min-height: 0;
+}
+.board-area { container-type: size; min-height: 0; display: grid; place-items: center; }
+.board {
+  container-type: inline-size;
+  width: min(100cqw, 100cqh * 4 / 3);
+  aspect-ratio: 4 / 3;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: var(--line);
+  padding: var(--line);
+  background: var(--ink);
+  border-radius: 8px;
+}
+.cell {
+  position: relative;
+  border: 0;
+  background: var(--board);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  overflow: visible;
+  border-radius: 3px;
+}
+.cell .num {
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: 12cqw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.cell[data-team="0"] { --mark: var(--green); }
+.cell[data-team="1"] { --mark: var(--red); }
+body.phase-play .cell:not(.crossed):hover { background: var(--team-soft); }
+.cell .x { position: absolute; inset: 6%; width: 88%; height: 88%; pointer-events: none; overflow: visible; }
+.cell .x path { fill: none; stroke: var(--mark); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.cell .x.draw path { animation: draw .32s ease-out both; }
+.cell .x.draw path + path { animation-delay: .28s; }
+@keyframes draw { from { stroke-dashoffset: 1; } }
+.cell.glow { animation: glow 2.2s ease-out; }
+@keyframes glow { 0%, 55% { background: var(--hl); } 100% { background: var(--board); } }
+.cell.nope { animation: nope .45s; }
+@keyframes nope { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.pop {
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  transform: translateX(-50%);
+  font-family: var(--f-marker);
+  font-size: 7cqw;
+  color: var(--mark);
+  background: var(--paper);
+  border: 3px solid var(--mark);
+  border-radius: 999px;
+  padding: 0 .35em;
+  line-height: 1.15;
+  pointer-events: none;
+  z-index: 2;
+  animation: rise 1.8s ease-out forwards;
+}
+@keyframes rise { 0% { opacity: 0; transform: translate(-50%, 30%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1); } }
+
+/* ---------- Side panel ---------- */
+.side { display: flex; flex-direction: column; gap: clamp(12px, 2.2vmin, 28px); min-height: 0; min-width: 0; overflow-y: auto; padding: 4px; }
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px, 1.6vmin, 20px); }
+.team {
+  --c: var(--green);
+  --soft: var(--green-soft);
+  border: 3px solid transparent;
+  border-radius: 14px;
+  padding: clamp(8px, 1.4vmin, 16px) clamp(10px, 1.6vmin, 18px);
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+}
+.team.t1 { --c: var(--red); --soft: var(--red-soft); }
+.team.active { border-color: var(--c); background: var(--soft); }
+.team-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.team-name {
+  font-family: var(--f-marker);
+  font-size: clamp(1.5rem, 3.4vmin, 2.7rem);
+  line-height: 1.05;
+  color: var(--c);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+.chip {
+  flex: none;
+  background: var(--c);
+  color: var(--paper);
+  font-weight: 700;
+  font-size: clamp(.75rem, 1.4vmin, 1rem);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: .2em .7em;
+}
+.team:not(.active) .chip { visibility: hidden; }
+.team-score { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.score-num { font-weight: 700; font-size: clamp(2.2rem, 6vmin, 4.6rem); line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); }
+.score-unit { font-size: clamp(.8rem, 1.4vmin, 1rem); color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.tally { display: flex; flex-wrap: wrap; gap: 2px 8px; color: var(--c); min-height: 1.6em; }
+.tally svg { height: clamp(22px, 3.4vmin, 40px); width: auto; }
+.tally path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
+
+.turn {
+  background: var(--tray);
+  border-radius: 16px;
+  padding: clamp(12px, 2vmin, 26px);
+  display: grid;
+  gap: clamp(12px, 2vmin, 22px);
+}
+.who { margin: 0; font-size: clamp(1.1rem, 2.4vmin, 1.8rem); font-weight: 700; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 .4em; }
+.who .tname { font-family: var(--f-marker); font-weight: 400; font-size: 1.45em; color: var(--team); }
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  gap: clamp(6px, 1.2vmin, 12px);
+  font-size: clamp(1.05rem, 2.3vmin, 1.7rem);
+  line-height: 1.25;
+}
+.steps li { counter-increment: step; display: flex; align-items: center; gap: .6em; }
+.steps li::before {
+  content: counter(step);
+  flex: none;
+  width: 1.8em;
+  height: 1.8em;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 3px solid var(--team);
+  color: var(--team);
+  font-weight: 700;
+  font-size: .8em;
+}
+.entry { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.entry label { font-weight: 700; font-size: clamp(1rem, 2vmin, 1.4rem); }
+.entry input {
+  width: 3.2em;
+  font: inherit;
+  font-weight: 700;
+  font-size: clamp(1.6rem, 4vmin, 3rem);
+  text-align: center;
+  padding: .05em .1em;
+  border-radius: 12px;
+  border: 3px solid var(--team);
+  background: var(--paper);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.entry .btn { border-color: var(--team); background: var(--team); color: var(--paper); }
+.go {
+  min-height: clamp(52px, 7vmin, 84px);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  background: var(--paper);
+  font-weight: 700;
+  font-size: clamp(1rem, 2.1vmin, 1.5rem);
+  padding: .3em .8em;
+  box-shadow: 0 4px 0 var(--ink);
+}
+.go:hover { background: var(--board); }
+.go:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.msg { margin: 0; min-height: 2.6em; font-size: clamp(1rem, 2.1vmin, 1.6rem); line-height: 1.35; }
+.msg strong { display: block; font-size: 1.25em; }
+.msg.good strong { color: var(--team-last, var(--ink)); }
+.msg.warn { color: var(--red); font-weight: 700; }
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgba(29, 39, 49, .55);
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+}
+.sheet {
+  position: relative;
+  z-index: 1;
+  background: var(--board);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+  padding: clamp(20px, 3.4vmin, 44px);
+  width: min(100%, 40rem);
+  display: grid;
+  gap: 18px;
+}
+.sheet h2 { margin: 0; font-family: var(--f-marker); font-weight: 400; font-size: clamp(2rem, 4.6vmin, 3.4rem); line-height: 1.05; text-wrap: balance; }
+.sheet p { margin: 0; line-height: 1.5; }
+.sheet ol { margin: 0; padding-left: 1.4em; display: grid; gap: .55em; line-height: 1.45; }
+.field { display: grid; gap: 6px; }
+.field label { font-weight: 700; font-size: .85em; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.field input {
+  font: inherit;
+  font-family: var(--f-marker);
+  font-size: clamp(1.6rem, 3.6vmin, 2.4rem);
+  padding: .15em .45em;
+  border-radius: 12px;
+  border: 3px solid var(--c);
+  color: var(--c);
+  background: var(--paper);
+  width: 100%;
+}
+.field.t0 { --c: var(--green); }
+.field.t1 { --c: var(--red); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  border-radius: 12px;
+  padding: .55em 1.1em;
+  font-weight: 700;
+  font-size: clamp(1rem, 2vmin, 1.3rem);
+}
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn:hover:not(.primary) { filter: brightness(.96); }
+.menu-list { display: grid; gap: 10px; }
+.menu-list .btn { text-align: left; }
+.final { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.final > div { border-radius: 14px; padding: 12px 16px; background: var(--tray); min-width: 0; }
+.final .n { font-family: var(--f-marker); font-size: clamp(1.4rem, 3vmin, 2.2rem); overflow-wrap: break-word; }
+.final .p { font-weight: 700; font-size: clamp(2rem, 5vmin, 3.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
+.final .f0 .n { color: var(--green); }
+.final .f1 .n { color: var(--red); }
+.final .win { outline: 4px solid var(--hl); background: var(--paper); }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.tip { font-size: .9em; color: var(--muted); }
+
+/* ---------- Narrow screens and portrait ---------- */
+@media (max-width: 860px), (orientation: portrait) {
+  html, body { height: auto; }
+  .wb { height: auto; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .board-area { container-type: normal; }
+  .board { width: 100%; }
+  .side { overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wb">
+  <header class="top">
+    <div class="brand">
+      <h1>Plump</h1>
+      <p class="legend"><span>Addition +</span><span>Subtraktion −</span></p>
+    </div>
+    <nav class="tools" aria-label="Verktyg">
+      <button class="tool" id="btn-rules" type="button">Regler</button>
+      <button class="tool" id="btn-undo" type="button">Ångra</button>
+      <button class="tool" id="btn-full" type="button">Helskärm</button>
+      <button class="tool" id="btn-menu" type="button">Nytt spel</button>
+    </nav>
+  </header>
+
+  <main class="main">
+    <section class="board-area" aria-label="Spelplan">
+      <div class="board" id="board"></div>
+    </section>
+
+    <aside class="side">
+      <div class="teams" id="teams"></div>
+      <section class="turn" aria-label="Turen">
+        <p class="who" id="who"></p>
+        <ol class="steps" id="steps">
+          <li>Slå två tärningar.</li>
+          <li>Räkna plus eller minus.</li>
+          <li>Säg ert tal. Det kryssas på planen.</li>
+        </ol>
+        <form class="entry" id="entry" autocomplete="off">
+          <label for="num">Skriv talet:</label>
+          <input id="num" inputmode="numeric" pattern="[0-9]*" maxlength="2" aria-describedby="msg">
+          <button class="btn" type="submit">Kryssa</button>
+        </form>
+        <button class="go" id="go" type="button">Inget tal går. Nästa lag!</button>
+        <p class="msg" id="msg" aria-live="polite"></p>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<div class="overlay" id="ov-setup" hidden>
+  <form class="sheet" id="setup-form" autocomplete="off">
+    <h2 id="setup-title">Hitta på lagnamn!</h2>
+    <p id="setup-text">Dela in klassen i två lag. Varje lag hittar på ett namn.</p>
+    <div class="field t0">
+      <label for="name0">Gröna laget</label>
+      <input id="name0" maxlength="24">
+    </div>
+    <div class="field t1">
+      <label for="name1">Röda laget</label>
+      <input id="name1" maxlength="24">
+    </div>
+    <div class="row">
+      <button class="btn primary" type="submit" id="setup-ok">Starta spelet</button>
+      <button class="btn" type="button" id="setup-rules">Läs reglerna</button>
+    </div>
+  </form>
+</div>
+
+<div class="overlay" id="ov-rules" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="rules-h">
+    <h2 id="rules-h">Så spelar ni plump</h2>
+    <ol>
+      <li>Dela in klassen i två lag och hitta på lagnamn.</li>
+      <li>Laget som har tur slår två tärningar.</li>
+      <li>Laget väljer om de vill <b>addera</b> eller <b>subtrahera</b>. Slår ni en femma och en tvåa kan ni ta 5 + 2 = 7 eller 5 − 2 = 3.</li>
+      <li>Laget säger sitt tal. Tryck på talet på spelplanen eller skriv in det. Talet kryssas och laget får <b>1 poäng</b>.</li>
+      <li>Ligger talet bredvid tal som redan är kryssade får laget <b>1 poäng extra</b> för varje sådant tal. Snett räknas också. Talet 11 ger 6 poäng om 6, 7, 8, 10 och 12 redan är kryssade.</li>
+      <li>Går inget tal att kryssa är det nästa lags tur.</li>
+      <li>Flest poäng när alla tal är kryssade vinner.</li>
+    </ol>
+    <p class="tip">Blev det fel? Tryck på Ångra. De sista talen kan ta tid att få. Då kan ni avsluta via Nytt spel och Visa vinnaren.</p>
+    <div class="row"><button class="btn primary" type="button" data-close>Nu spelar vi!</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-menu" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="menu-h">
+    <h2 id="menu-h">Vad vill ni göra?</h2>
+    <div class="menu-list">
+      <button class="btn" type="button" id="m-finish">Avsluta och visa vinnaren</button>
+      <button class="btn" type="button" id="m-again">Nytt spel med samma lag</button>
+      <button class="btn" type="button" id="m-new">Nytt spel med nya lag</button>
+      <button class="btn" type="button" id="m-rename">Byt lagnamn</button>
+      <button class="btn primary" type="button" data-close>Fortsätt spela</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-win" hidden>
+  <canvas id="confetti"></canvas>
+  <div class="sheet" role="dialog" aria-labelledby="win-h">
+    <h2 id="win-h"></h2>
+    <p id="win-text"></p>
+    <div class="final" id="final"></div>
+    <div class="row">
+      <button class="btn primary" type="button" id="w-again">Spela igen</button>
+      <button class="btn" type="button" id="w-new">Nya lag</button>
+      <button class="btn" type="button" id="w-board">Titta på spelplanen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  document.documentElement.lang = "sv";
+
+  var KEY = "additionsplump-v2";
+  var COLS = 4, ROWS = 3, N = 12;
+  var DEFAULT_NAMES = ["Lag Grön", "Lag Röd"];
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var finePointer = window.matchMedia && matchMedia("(pointer: fine)").matches;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var S = null;
+  var fx = null; // one-shot effects for the next render: {cross, glow, pop}
+
+  function fresh(names) {
+    return {
+      teams: names.map(function (n) { return { name: n, score: 0 }; }),
+      cells: Array(N).fill(null),
+      turn: 0,
+      phase: "play",
+      lastTeam: null,
+      msg: null,
+      history: []
+    };
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ---------- Rules ---------- */
+  function crossedNeighbors(i) {
+    var r = Math.floor(i / COLS), c = i % COLS, out = [];
+    for (var dr = -1; dr <= 1; dr++) {
+      for (var dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        var rr = r + dr, cc = c + dc;
+        if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) continue;
+        var j = rr * COLS + cc;
+        if (S.cells[j] !== null) out.push(j);
+      }
+    }
+    return out;
+  }
+
+  /* ---------- Actions ---------- */
+  function pushHistory() {
+    var copy = JSON.parse(JSON.stringify(S));
+    copy.history = [];
+    S.history.push(copy);
+    if (S.history.length > 40) S.history.shift();
+  }
+
+  function say(text, kind, title) { S.msg = { text: text, kind: kind || "info", title: title || "" }; }
+
+  function shake(i) {
+    var el = $("board").children[i];
+    el.classList.remove("nope");
+    void el.offsetWidth;
+    el.classList.add("nope");
+  }
+
+  function pick(n) {
+    if (S.phase === "over") return;
+    if (!(n >= 1 && n <= N)) {
+      say(n === 0 ? "0 finns inte på spelplanen. Välj ett annat tal!" : "Talet finns inte på spelplanen. Skriv ett tal från 1 till 12.", "warn");
+      render();
+      return;
+    }
+    var i = n - 1;
+    if (S.cells[i] !== null) {
+      say(n + " är redan kryssat. Prova att räkna på det andra sättet!", "warn");
+      render(); shake(i); return;
+    }
+
+    pushHistory();
+    var t = S.turn;
+    var nb = crossedNeighbors(i);
+    var pts = 1 + nb.length;
+    S.cells[i] = t;
+    S.teams[t].score += pts;
+    var why = nb.length
+      ? "1 poäng för talet + " + nb.length + " för " + (nb.length === 1 ? "grannen" : "grannarna") + "."
+      : "1 poäng för talet.";
+    fx = { cross: i, glow: nb, pop: { i: i, pts: pts } };
+    S.lastTeam = t;
+    var title = S.teams[t].name + " kryssade " + n + " och fick " + pts + " poäng!";
+
+    if (S.cells.every(function (c) { return c !== null; })) {
+      S.phase = "over";
+      say(why + " Alla tal är kryssade!", "good", title);
+      render();
+      setTimeout(showWinner, reduceMotion ? 0 : 1600);
+      return;
+    }
+    S.turn = 1 - t;
+    say(why + " Nu slår " + S.teams[S.turn].name + ".", "good", title);
+    render();
+  }
+
+  function pass() {
+    if (S.phase !== "play") return;
+    pushHistory();
+    var t = S.turn;
+    S.turn = 1 - t;
+    S.lastTeam = null;
+    say("Inget tal att kryssa för " + S.teams[t].name + " den här gången. Nu slår " + S.teams[S.turn].name + ".", "info");
+    render();
+  }
+
+  function undo() {
+    if (!S.history.length) return;
+    var h = S.history;
+    var prev = h.pop();
+    prev.history = h;
+    S = prev;
+    say("Det senaste draget är ångrat. Nu slår " + S.teams[S.turn].name + ".", "info");
+    closeOverlays();
+    render();
+  }
+
+  function newGame(names) {
+    S = fresh(names || S.teams.map(function (t) { return t.name; }));
+    say("Nu slår " + S.teams[0].name + ". Lycka till!", "info");
+    render();
+  }
+
+  /* ---------- Rendering ---------- */
+  function xSvg(i, draw) {
+    var j = function (k) { return ((i * 37 + k * 23) % 9) - 4; };
+    return '<svg class="x' + (draw ? " draw" : "") + '" viewBox="0 0 100 100" aria-hidden="true">' +
+      '<path pathLength="1" d="M' + (12 + j(1)) + " " + (14 + j(2)) + " Q" + (50 + j(3)) + " " + (48 + j(4)) + " " + (88 + j(5)) + " " + (86 + j(6)) + '"/>' +
+      '<path pathLength="1" d="M' + (86 + j(7)) + " " + (12 + j(8)) + " Q" + (52 + j(9)) + " " + (50 + j(10)) + " " + (14 + j(11)) + " " + (88 + j(12)) + '"/>' +
+      "</svg>";
+  }
+
+  function tallySvg(count) {
+    var out = "";
+    var groups = Math.floor(count / 5), rest = count % 5;
+    var stroke = function (x) { return '<path d="M' + x + ' 4 L' + (x + 0.6) + ' 34"/>'; };
+    for (var g = 0; g < groups; g++) {
+      out += '<svg viewBox="0 0 40 38" aria-hidden="true">' + stroke(6) + stroke(14) + stroke(22) + stroke(30) + '<path d="M1 28 L38 9"/></svg>';
+    }
+    if (rest) {
+      var s = "";
+      for (var k = 0; k < rest; k++) s += stroke(6 + k * 8);
+      out += '<svg viewBox="0 0 ' + (6 + rest * 8) + ' 38" aria-hidden="true">' + s + "</svg>";
+    }
+    return out;
+  }
+
+  function buildBoard() {
+    var b = $("board");
+    var html = "";
+    for (var n = 1; n <= N; n++) html += '<button class="cell" type="button" data-n="' + n + '"><span class="num">' + n + "</span></button>";
+    b.innerHTML = html;
+    b.addEventListener("click", function (e) {
+      var cell = e.target.closest(".cell");
+      if (cell) { keepAwake(); pick(+cell.dataset.n); }
+    });
+  }
+
+  function renderBoard() {
+    var cells = $("board").children;
+    for (var i = 0; i < N; i++) {
+      var el = cells[i], owner = S.cells[i];
+      var svg = el.querySelector(".x");
+      if (owner === null) {
+        el.removeAttribute("data-team");
+        el.classList.remove("crossed");
+        if (svg) svg.remove();
+        el.setAttribute("aria-label", String(i + 1));
+      } else {
+        el.dataset.team = owner;
+        el.classList.add("crossed");
+        if (!svg) el.insertAdjacentHTML("beforeend", xSvg(i, fx && fx.cross === i && !reduceMotion));
+        el.setAttribute("aria-label", (i + 1) + ", kryssat av " + S.teams[owner].name);
+      }
+    }
+    if (fx) {
+      fx.glow.forEach(function (j) {
+        var c = cells[j];
+        c.classList.remove("glow"); void c.offsetWidth; c.classList.add("glow");
+        setTimeout(function () { c.classList.remove("glow"); }, 2300);
+      });
+      if (fx.pop && !reduceMotion) {
+        var host = cells[fx.pop.i];
+        var p = document.createElement("span");
+        p.className = "pop";
+        p.textContent = "+" + fx.pop.pts;
+        host.appendChild(p);
+        setTimeout(function () { p.remove(); }, 1900);
+      }
+      fx = null;
+    }
+  }
+
+  function renderTeams() {
+    $("teams").innerHTML = S.teams.map(function (t, k) {
+      var active = S.phase !== "over" && S.turn === k;
+      return '<div class="team t' + k + (active ? " active" : "") + '">' +
+        '<div class="team-head"><button class="team-name" type="button" data-rename title="Byt lagnamn">' + esc(t.name) + '</button><span class="chip">Er tur</span></div>' +
+        '<div class="team-score"><span class="score-num">' + t.score + '</span><span class="score-unit">poäng</span></div>' +
+        '<div class="tally" aria-hidden="true">' + tallySvg(t.score) + "</div>" +
+        "</div>";
+    }).join("");
+  }
+
+  function renderTurn() {
+    var root = document.documentElement.style;
+    var color = S.turn === 0 ? "green" : "red";
+    root.setProperty("--team", "var(--" + color + ")");
+    root.setProperty("--team-soft", "var(--" + color + "-soft)");
+    root.setProperty("--team-last", S.lastTeam == null ? "var(--ink)" : "var(--" + (S.lastTeam === 0 ? "green" : "red") + ")");
+    document.body.className = "phase-" + S.phase;
+
+    var over = S.phase === "over";
+    $("who").innerHTML = over ? "Spelet är slut!" : "Nu slår <span class=\"tname\">" + esc(S.teams[S.turn].name) + "</span>";
+    $("steps").hidden = over;
+    $("entry").hidden = over;
+    $("go").textContent = over ? "Visa vinnaren" : "Inget tal går. Nästa lag!";
+
+    var m = $("msg");
+    m.className = "msg" + (S.msg ? " " + S.msg.kind : "");
+    m.innerHTML = S.msg ? (S.msg.title ? "<strong>" + esc(S.msg.title) + "</strong>" : "") + esc(S.msg.text) : "";
+
+    $("btn-undo").disabled = !S.history.length;
+  }
+
+  function render() {
+    renderBoard();
+    renderTeams();
+    renderTurn();
+    save();
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ }
+  }
+
+  /* ---------- Overlays ---------- */
+  var overlays = ["ov-setup", "ov-rules", "ov-menu", "ov-win"];
+  var setupMode = "new";
+  var rulesReturn = null;
+  function openOverlay(id) {
+    overlays.forEach(function (o) { $(o).hidden = o !== id; });
+    var first = $(id).querySelector("input, button");
+    if (first) setTimeout(function () { first.focus(); }, 30);
+  }
+  function closeOverlays() { overlays.forEach(function (o) { $(o).hidden = true; }); stopConfetti(); }
+  function anyOpen() { return overlays.some(function (o) { return !$(o).hidden; }); }
+
+  function openSetup(mode) {
+    setupMode = mode;
+    $("name0").value = mode === "new" ? "" : S.teams[0].name;
+    $("name1").value = mode === "new" ? "" : S.teams[1].name;
+    $("name0").placeholder = DEFAULT_NAMES[0];
+    $("name1").placeholder = DEFAULT_NAMES[1];
+    $("setup-title").textContent = mode === "new" ? "Hitta på lagnamn!" : "Byt lagnamn";
+    $("setup-text").hidden = mode !== "new";
+    $("setup-ok").textContent = mode === "new" ? "Starta spelet" : "Spara namnen";
+    openOverlay("ov-setup");
+  }
+
+  $("setup-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var names = [0, 1].map(function (k) {
+      var v = $("name" + k).value.trim();
+      return v || DEFAULT_NAMES[k];
+    });
+    closeOverlays();
+    if (setupMode === "new") newGame(names);
+    else {
+      S.teams[0].name = names[0]; S.teams[1].name = names[1];
+      render();
+    }
+  });
+  $("setup-rules").addEventListener("click", function () { rulesReturn = "ov-setup"; openOverlay("ov-rules"); });
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-close]")) {
+      if (rulesReturn && !$("ov-rules").hidden) { openOverlay(rulesReturn); rulesReturn = null; }
+      else closeOverlays();
+    }
+    if (e.target.closest("[data-rename]")) openSetup("rename");
+  });
+  overlays.forEach(function (id) {
+    $(id).addEventListener("click", function (e) {
+      if (e.target === $(id) && id !== "ov-setup") closeOverlays();
+    });
+  });
+
+  function showWinner() {
+    if (S.phase !== "over") {
+      S.phase = "over";
+      say("Spelet är slut.", "info");
+      render();
+    }
+    var a = S.teams[0], b = S.teams[1];
+    var tie = a.score === b.score;
+    var w = a.score > b.score ? 0 : 1;
+    $("win-h").textContent = tie ? "Oavgjort!" : "Grattis " + S.teams[w].name + "!";
+    $("win-text").textContent = tie ? "Båda lagen fick lika många poäng. Bra räknat allihop!" : "Ni fick flest poäng. Bra räknat båda lagen!";
+    $("final").innerHTML = S.teams.map(function (t, k) {
+      return '<div class="f' + k + (!tie && k === w ? " win" : "") + '"><div class="n">' + esc(t.name) + '</div><div class="p">' + t.score + "</div></div>";
+    }).join("");
+    openOverlay("ov-win");
+    confetti(tie ? null : w);
+  }
+
+  /* ---------- Confetti ---------- */
+  var confettiRaf = 0;
+  function stopConfetti() {
+    cancelAnimationFrame(confettiRaf);
+    var c = $("confetti");
+    c.getContext("2d").clearRect(0, 0, c.width, c.height);
+  }
+  function confetti(team) {
+    if (reduceMotion) return;
+    var c = $("confetti"), ctx = c.getContext("2d");
+    var W = c.width = innerWidth, H = c.height = innerHeight;
+    var css = getComputedStyle(document.documentElement);
+    var palette = team === 0 ? ["--green", "--hl", "--green", "--ink"] : team === 1 ? ["--red", "--hl", "--red", "--ink"] : ["--green", "--red", "--hl"];
+    palette = palette.map(function (v) { return css.getPropertyValue(v).trim(); });
+    var parts = [];
+    for (var k = 0; k < 160; k++) {
+      parts.push({ x: Math.random() * W, y: -Math.random() * H * 0.6, vx: (Math.random() - .5) * 2, vy: 2 + Math.random() * 3, r: Math.random() * 6, s: 6 + Math.random() * 8, col: palette[k % palette.length], spin: (Math.random() - .5) * .3 });
+    }
+    var t0 = performance.now();
+    cancelAnimationFrame(confettiRaf);
+    (function frame(now) {
+      ctx.clearRect(0, 0, W, H);
+      parts.forEach(function (p) {
+        p.x += p.vx; p.y += p.vy; p.r += p.spin;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+        ctx.fillStyle = p.col; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+        ctx.restore();
+      });
+      if (now - t0 < 4500) confettiRaf = requestAnimationFrame(frame);
+      else ctx.clearRect(0, 0, W, H);
+    })(t0);
+  }
+
+  /* ---------- Screen helpers ---------- */
+  var lock = null;
+  function keepAwake() {
+    if (lock || !navigator.wakeLock) return;
+    navigator.wakeLock.request("screen").then(function (l) {
+      lock = l;
+      l.addEventListener("release", function () { lock = null; });
+    }).catch(function () {});
+  }
+
+  var fullBtn = $("btn-full");
+  if (!document.fullscreenEnabled) fullBtn.hidden = true;
+  fullBtn.addEventListener("click", function () {
+    var p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    if (p && p.catch) p.catch(function () { fullBtn.hidden = true; });
+  });
+  document.addEventListener("fullscreenchange", function () {
+    fullBtn.textContent = document.fullscreenElement ? "Lämna helskärm" : "Helskärm";
+  });
+
+  /* ---------- Wiring ---------- */
+  $("entry").addEventListener("submit", function (e) {
+    e.preventDefault();
+    keepAwake();
+    var raw = $("num").value.trim();
+    $("num").value = "";
+    if (!/^\d{1,2}$/.test(raw)) {
+      say("Skriv ett tal från 1 till 12.", "warn");
+      render();
+      return;
+    }
+    pick(parseInt(raw, 10));
+    if (finePointer) $("num").focus();
+  });
+  $("go").addEventListener("click", function () {
+    if (S.phase === "over") showWinner();
+    else pass();
+  });
+  $("btn-undo").addEventListener("click", undo);
+  $("btn-rules").addEventListener("click", function () { rulesReturn = null; openOverlay("ov-rules"); });
+  $("btn-menu").addEventListener("click", function () { openOverlay("ov-menu"); });
+  $("m-finish").addEventListener("click", function () { closeOverlays(); showWinner(); });
+  $("m-again").addEventListener("click", function () { closeOverlays(); newGame(); });
+  $("m-new").addEventListener("click", function () { openSetup("new"); });
+  $("m-rename").addEventListener("click", function () { openSetup("rename"); });
+  $("w-again").addEventListener("click", function () { closeOverlays(); newGame(); });
+  $("w-new").addEventListener("click", function () { openSetup("new"); });
+  $("w-board").addEventListener("click", closeOverlays);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && anyOpen()) closeOverlays();
+  });
+
+  /* ---------- Start ---------- */
+  function valid(s) {
+    return s && Array.isArray(s.cells) && s.cells.length === N && Array.isArray(s.teams) && s.teams.length === 2 &&
+      Array.isArray(s.history) && (s.phase === "play" || s.phase === "over");
+  }
+
+  function start(data) {
+    buildBoard();
+    var saved = data && data.state;
+    if (!valid(saved)) {
+      try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) { saved = null; }
+    }
+    if (valid(saved)) {
+      S = saved;
+      render();
+      if (S.phase === "over") showWinner();
+    } else {
+      S = fresh(DEFAULT_NAMES.slice());
+      say("Nu slår " + S.teams[0].name + ". Lycka till!", "info");
+      render();
+      openSetup("new");
+    }
+  }
+
+  try { if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function () { return { state: S }; }); } catch (e) {}
+  var hot = window.claude && window.claude.hot;
+  if (hot && hot.ready) hot.ready(start);
+  else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>
